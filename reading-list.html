@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PI Reading Club | Weekly Book Picks for Investors</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='32' height='32' rx='8' fill='%2316a34a'/%3E%3Cpath d='M7 8C7 6.89543 7.89543 6 9 6H15C16.1046 6 17 6.89543 17 8V22C17 22 14.5 20 12 20C9.5 20 7 22 7 22V8Z' fill='white' fill-opacity='0.9'/%3E%3Cpath d='M17 8C17 6.89543 17.8954 6 19 6H23C24.1046 6 25 6.89543 25 8V22C25 22 22.5 20 20 20C17.5 20 17 22 17 22V8Z' fill='white' fill-opacity='0.65'/%3E%3C/svg%3E">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script type="module">
+    import { ShaderMount, meshGradientFragmentShader, neuroNoiseFragmentShader, getShaderColorFromString } from 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@latest/+esm';
+    window.ShaderMount = ShaderMount;
+    window.meshGradientFragmentShader = meshGradientFragmentShader;
+    window.neuroNoiseFragmentShader = neuroNoiseFragmentShader;
+    window.getShaderColorFromString = getShaderColorFromString;
+    window.dispatchEvent(new Event('shaders-ready'));
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --green-50: #f0fdf4; --green-100: #dcfce7; --green-200: #bbf7d0;
+      --green-300: #86efac; --green-400: #4ade80; --green-500: #22c55e;
+      --green-600: #16a34a; --green-700: #15803d; --green-800: #166534; --green-900: #14532d;
+      --white: #ffffff;
+      --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb; --gray-300: #d1d5db;
+      --gray-400: #9ca3af; --gray-500: #6b7280; --gray-600: #4b5563;
+      --gray-700: #374151; --gray-800: #1f2937; --gray-900: #111827;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--white); color: var(--gray-800); overflow-x: hidden; line-height: 1.6;
+    }
+
+    #three-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+
+    .shader-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; overflow: hidden; }
+    .shader-bg canvas { width: 100% !important; height: 100% !important; }
+
+    /* ── Metallic text: silver/chrome on any background ── */
+    .metallic-text {
+      background: linear-gradient(
+        135deg,
+        #1a1a2e 0%, #c0c0c0 15%, #ffffff 30%, #a8a8a8 42%,
+        #ffffff 50%, #c0c0c0 58%, #e8e8e8 70%, #a0a0a0 85%, #1a1a2e 100%
+      );
+      background-size: 300% 300%;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      animation: metallic-shimmer 5s ease-in-out infinite;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.12));
+    }
+
+    @keyframes metallic-shimmer { 0% { background-position: 0% 0%; } 50% { background-position: 100% 100%; } 100% { background-position: 0% 0%; } }
+
+    /* ── Gold metallic accent ── */
+    .gold-text {
+      background: linear-gradient(135deg, #8B6914 0%, #DAA520 20%, #FFD700 40%, #FFF8DC 50%, #DAA520 60%, #B8860B 80%, #8B6914 100%);
+      background-size: 300% 300%;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      animation: metallic-shimmer 4s ease-in-out infinite;
+      filter: drop-shadow(0 2px 6px rgba(218,165,32,0.2));
+    }
+
+    /* ── Chrome/mirror text ── */
+    .chrome-text {
+      background: linear-gradient(180deg, #d0d0d0 0%, #ffffff 15%, #888 30%, #ffffff 45%, #aaa 55%, #ffffff 70%, #888 85%, #d0d0d0 100%);
+      background-size: 100% 200%;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      animation: chrome-shift 4s ease-in-out infinite;
+      filter: drop-shadow(0 1px 4px rgba(0,0,0,0.1));
+    }
+    @keyframes chrome-shift { 0%, 100% { background-position: 0% 0%; } 50% { background-position: 0% 100%; } }
+
+    /* ── Metallic border effect ── */
+    .metallic-border { position: relative; }
+    .metallic-border::before {
+      content: ''; position: absolute; inset: -1px; border-radius: inherit;
+      background: linear-gradient(135deg, rgba(192,192,192,0.4) 0%, rgba(255,255,255,0.7) 25%, rgba(192,192,192,0.5) 50%, rgba(255,255,255,0.7) 75%, rgba(192,192,192,0.4) 100%);
+      background-size: 300% 300%; animation: border-shimmer 6s ease infinite; z-index: -1;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask-composite: exclude;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor;
+      padding: 1.5px;
+    }
+    @keyframes border-shimmer { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+    @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(34,197,94,0.15); } 50% { box-shadow: 0 0 40px rgba(34,197,94,0.3); } }
+    @keyframes count-pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+
+    /* Navigation */
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(20px) saturate(1.5); background: rgba(255,255,255,0.75); border-bottom: 1px solid rgba(34,197,94,0.08); transition: all 0.3s ease; }
+    nav.scrolled { background: rgba(255,255,255,0.92); box-shadow: 0 4px 30px rgba(0,0,0,0.06); }
+    .nav-brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 1.2rem; color: var(--green-800); text-decoration: none; }
+    .nav-brand svg { width: 32px; height: 32px; }
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a { text-decoration: none; color: var(--gray-600); font-weight: 500; font-size: 0.9rem; transition: color 0.2s; letter-spacing: 0.02em; }
+    .nav-links a:hover { color: var(--green-600); }
+
+    /* Hero */
+    .hero { position: relative; min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6rem 2rem 4rem; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 20%, rgba(187,247,208,0.3) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(134,239,172,0.15) 0%, transparent 50%); z-index: 1; pointer-events: none; }
+    .hero-content { position: relative; z-index: 2; max-width: 800px; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1.2rem; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(34,197,94,0.2); border-radius: 100px; font-size: 0.85rem; font-weight: 600; color: var(--green-700); margin-bottom: 2rem; animation: fadeInUp 0.6s ease forwards; }
+    .hero-badge .dot { width: 8px; height: 8px; background: var(--green-500); border-radius: 50%; animation: pulse-glow 2s infinite; }
+    .hero h1 { font-family: 'Playfair Display', serif; font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 700; line-height: 1.1; margin-bottom: 1.5rem; color: var(--gray-900); animation: fadeInUp 0.8s ease 0.2s forwards; opacity: 0; }
+    .hero p { font-size: clamp(1rem, 2vw, 1.25rem); color: var(--gray-500); max-width: 600px; margin: 0 auto 2.5rem; line-height: 1.8; animation: fadeInUp 0.8s ease 0.4s forwards; opacity: 0; }
+    .hero-cta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; animation: fadeInUp 0.8s ease 0.6s forwards; opacity: 0; }
+
+    .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.9rem 2rem; border-radius: 12px; font-weight: 600; font-size: 0.95rem; text-decoration: none; transition: all 0.3s ease; cursor: pointer; border: none; font-family: inherit; }
+    .btn-primary { background: linear-gradient(135deg, var(--green-600), var(--green-500)); color: white; box-shadow: 0 4px 15px rgba(34,197,94,0.3); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(34,197,94,0.4); }
+    .btn-secondary { background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); color: var(--gray-700); border: 1.5px solid var(--gray-200); }
+    .btn-secondary:hover { border-color: var(--green-300); background: var(--green-50); }
+    .btn-outline { background: transparent; color: var(--green-700); border: 1.5px solid var(--green-200); }
+    .btn-outline:hover { background: var(--green-50); border-color: var(--green-400); }
+
+    /* Sections */
+    section { position: relative; z-index: 2; }
+    .section-header { text-align: center; margin-bottom: 3.5rem; }
+    .section-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--green-600); margin-bottom: 0.75rem; }
+    .section-title { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem, 4vw, 2.8rem); color: var(--gray-900); margin-bottom: 1rem; }
+    .section-subtitle { font-size: 1.05rem; color: var(--gray-500); max-width: 550px; margin: 0 auto; line-height: 1.7; }
+    .section-divider { height: 2px; max-width: 200px; margin: 0 auto 2rem; background: linear-gradient(90deg, transparent, rgba(192,192,192,0.6), rgba(255,255,255,0.9), rgba(192,192,192,0.6), transparent); background-size: 200% 100%; animation: border-shimmer 4s ease infinite; }
+
+    /* Signup */
+    .signup-section { padding: 5rem 2rem; background: linear-gradient(180deg, var(--white) 0%, var(--green-50) 50%, var(--white) 100%); position: relative; overflow: hidden; }
+    .signup-container { max-width: 600px; margin: 0 auto; text-align: center; position: relative; z-index: 2; }
+    .signup-form { display: flex; gap: 0.75rem; margin-top: 2rem; flex-wrap: wrap; justify-content: center; }
+    .signup-form input[type="email"] { flex: 1; min-width: 260px; padding: 0.95rem 1.25rem; border-radius: 12px; border: 1.5px solid var(--gray-200); font-size: 0.95rem; font-family: inherit; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); color: var(--gray-800); outline: none; transition: all 0.3s ease; }
+    .signup-form input[type="email"]:focus { border-color: var(--green-400); box-shadow: 0 0 0 4px rgba(34,197,94,0.1); }
+    .signup-form input[type="email"]::placeholder { color: var(--gray-400); }
+    .signup-note { margin-top: 1rem; font-size: 0.8rem; color: var(--gray-400); }
+    .signup-success { display: none; padding: 1.5rem; background: rgba(34,197,94,0.08); border-radius: 12px; border: 1px solid rgba(34,197,94,0.15); margin-top: 1.5rem; color: var(--green-700); font-weight: 500; }
+    .signup-success.show { display: block; }
+
+    /* How It Works */
+    .how-section { padding: 6rem 2rem; background: var(--white); }
+    .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 2rem; max-width: 900px; margin: 0 auto; }
+    .step-card { text-align: center; padding: 2rem 1.5rem; border-radius: 20px; transition: all 0.3s; }
+    .step-card:hover { background: var(--green-50); }
+    .step-icon { width: 60px; height: 60px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; font-size: 1.5rem; font-weight: 800; background: linear-gradient(135deg, var(--green-500), var(--green-400)); color: white; box-shadow: 0 4px 12px rgba(34,197,94,0.25); }
+    .step-card h4 { font-size: 1.05rem; font-weight: 700; color: var(--gray-800); margin-bottom: 0.5rem; }
+    .step-card p { font-size: 0.88rem; color: var(--gray-500); line-height: 1.6; }
+
+    /* Books List */
+    .books-section { padding: 6rem 2rem; background: linear-gradient(180deg, var(--white) 0%, var(--green-50) 50%, var(--white) 100%); position: relative; overflow: hidden; }
+    .books-list { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .book-item { display: flex; align-items: center; gap: 1.25rem; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border-radius: 16px; padding: 1.25rem 1.5rem; border: 1px solid rgba(34,197,94,0.06); transition: all 0.35s cubic-bezier(0.4,0,0.2,1); cursor: default; position: relative; overflow: hidden; }
+    .book-item::after { content: ''; position: absolute; inset: 0; border-radius: 16px; background: linear-gradient(135deg, rgba(134,239,172,0.05) 0%, transparent 50%); pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+    .book-item:hover { transform: translateX(6px); box-shadow: 0 8px 30px rgba(34,197,94,0.08), 0 2px 8px rgba(0,0,0,0.03); border-color: rgba(34,197,94,0.12); }
+    .book-item:hover::after { opacity: 1; }
+    .book-item:first-child { background: rgba(255,255,255,0.95); border: 1.5px solid rgba(34,197,94,0.15); padding: 1.5rem 1.75rem; }
+
+    .book-rank-num { min-width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; flex-shrink: 0; background: var(--green-50); color: var(--green-600); border: 1px solid var(--green-100); }
+    .book-item:first-child .book-rank-num { background: linear-gradient(135deg, var(--green-500), var(--green-400)); color: white; border: none; box-shadow: 0 4px 12px rgba(34,197,94,0.3); min-width: 40px; height: 40px; font-size: 0.85rem; }
+
+    .book-info { flex: 1; min-width: 0; }
+    .book-info-top { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.2rem; flex-wrap: wrap; }
+    .book-title-link { text-decoration: none; transition: color 0.2s; }
+    .book-title-link:hover .book-title { color: var(--green-700); }
+    .book-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; color: var(--gray-900); line-height: 1.3; transition: color 0.2s; }
+    .book-item:first-child .book-title { font-size: 1.15rem; }
+    .book-category { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 100px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
+    .cat-investing { background: rgba(34,197,94,0.1); color: var(--green-700); }
+    .cat-history { background: rgba(59,130,246,0.1); color: #1d4ed8; }
+    .cat-psychology { background: rgba(168,85,247,0.1); color: #7c3aed; }
+    .cat-economics { background: rgba(245,158,11,0.1); color: #b45309; }
+    .book-author { font-size: 0.8rem; color: var(--gray-400); font-weight: 500; }
+    .book-description { font-size: 0.82rem; color: var(--gray-500); line-height: 1.5; margin-top: 0.3rem; display: none; }
+    .book-item:first-child .book-description { display: block; }
+    .goodreads-link { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; color: var(--gray-400); text-decoration: none; margin-top: 0.3rem; transition: color 0.2s; font-weight: 500; }
+    .goodreads-link:hover { color: #5c3d2e; }
+    .book-item:not(:first-child) .goodreads-link { display: none; }
+
+    .book-progress-area { display: flex; align-items: center; gap: 0.75rem; min-width: 200px; flex-shrink: 0; }
+    .progress-bar-track { flex: 1; height: 6px; background: var(--gray-100); border-radius: 100px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--green-400), var(--green-500)); transition: width 0.8s cubic-bezier(0.4,0,0.2,1); position: relative; }
+    .progress-bar-fill::after { content: ''; position: absolute; top: 0; right: 0; width: 20px; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4)); border-radius: 100px; }
+    .book-item:first-child .progress-bar-fill { background: linear-gradient(90deg, var(--green-500), var(--green-400), var(--green-300)); box-shadow: 0 0 8px rgba(34,197,94,0.3); }
+
+    .vote-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; border: 1.5px solid var(--green-200); background: var(--white); color: var(--green-700); cursor: pointer; transition: all 0.25s ease; font-family: inherit; flex-shrink: 0; }
+    .vote-btn:hover { background: var(--green-50); border-color: var(--green-400); transform: scale(1.05); }
+    .vote-btn.voted { background: linear-gradient(135deg, var(--green-500), var(--green-400)); border-color: transparent; color: white; box-shadow: 0 3px 10px rgba(34,197,94,0.25); }
+    .vote-count { font-size: 0.78rem; font-weight: 700; color: var(--gray-400); min-width: 48px; text-align: right; flex-shrink: 0; }
+    .vote-count.active { color: var(--green-600); }
+    .vote-count-num { display: inline-block; }
+    .vote-count-num.pop { animation: count-pop 0.3s ease; }
+
+    /* Weekly Pick */
+    .weekly-pick { padding: 5rem 2rem; background: var(--white); position: relative; overflow: hidden; }
+    .pick-card { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.5fr; gap: 3rem; align-items: center; background: linear-gradient(135deg, var(--green-50), rgba(187,247,208,0.3)); border-radius: 24px; padding: 3rem; border: 1px solid rgba(34,197,94,0.1); position: relative; overflow: hidden; }
+    .pick-card::after { content: ''; position: absolute; top: -50%; right: -30%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(34,197,94,0.06) 0%, transparent 70%); pointer-events: none; }
+    .pick-visual { display: flex; align-items: center; justify-content: center; }
+    .pick-book-display { width: 180px; height: 260px; background: linear-gradient(145deg, var(--gray-600), var(--gray-800)); border-radius: 8px 16px 16px 8px; box-shadow: -6px 6px 20px rgba(0,0,0,0.15), inset 0 0 30px rgba(255,255,255,0.05); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; color: white; text-align: center; position: relative; animation: float 4s ease-in-out infinite; }
+    .pick-book-display::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 12px; background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 50%, rgba(0,0,0,0.1) 100%); border-radius: 8px 0 0 8px; }
+    .pick-book-display::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 40%, rgba(255,255,255,0.08) 60%, transparent 100%); border-radius: 8px 16px 16px 8px; pointer-events: none; }
+    .pick-book-display .book-spine-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; line-height: 1.3; position: relative; z-index: 1; letter-spacing: 0.02em; }
+    .pick-book-display .book-spine-author { font-size: 0.7rem; opacity: 0.6; font-weight: 400; letter-spacing: 0.08em; position: relative; z-index: 1; margin-top: 0.5rem; }
+    .pick-info { position: relative; z-index: 1; }
+    .pick-info .pick-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--green-600); margin-bottom: 0.75rem; }
+    .pick-info h3 { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--gray-900); margin-bottom: 0.5rem; }
+    .pick-info .pick-desc { font-size: 0.95rem; color: var(--gray-600); line-height: 1.7; margin-bottom: 1.5rem; }
+
+    /* TBD Section */
+    .tbd-section { padding: 4rem 2rem 5rem; background: var(--white); }
+    .tbd-card {
+      max-width: 600px; margin: 0 auto; text-align: center; padding: 3rem 2rem;
+      background: linear-gradient(135deg, var(--gray-50), var(--green-50));
+      border-radius: 20px; border: 2px dashed var(--gray-200);
+    }
+    .tbd-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.6; }
+    .tbd-card h3 { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: var(--gray-700); margin-bottom: 0.75rem; }
+    .tbd-card p { font-size: 0.92rem; color: var(--gray-400); line-height: 1.6; max-width: 400px; margin: 0 auto 1.5rem; }
+
+    /* Footer */
+    footer { padding: 3rem 2rem 2rem; background: var(--gray-900); color: var(--gray-400); text-align: center; }
+    .footer-content { max-width: 700px; margin: 0 auto; }
+    .footer-brand { font-size: 1.1rem; font-weight: 700; color: var(--green-400); margin-bottom: 1rem; }
+    .footer-disclaimer { font-size: 0.78rem; color: var(--gray-500); line-height: 1.7; margin-bottom: 1.5rem; padding: 1.25rem; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
+    .footer-bottom { font-size: 0.75rem; color: var(--gray-600); padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .pick-card { grid-template-columns: 1fr; padding: 2rem; text-align: center; }
+      .hero { padding: 8rem 1.5rem 4rem; }
+      .book-item { flex-wrap: wrap; }
+      .book-progress-area { min-width: 100%; margin-top: 0.5rem; }
+    }
+
+    .reveal { opacity: 0; transform: translateY(20px); transition: all 0.7s cubic-bezier(0.4,0,0.2,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+  <canvas id="three-canvas"></canvas>
+
+  <nav id="navbar">
+    <a href="#" class="nav-brand">
+      PI Reading Club
+    </a>
+    <ul class="nav-links">
+      <li><a href="#signup">Join Us</a></li>
+      <li><a href="#books">Vote</a></li>
+      <li><a href="#pick">This Week</a></li>
+      <li><a href="discussion.html">Discuss</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="shader-bg" id="hero-shader"></div>
+    <div class="hero-content">
+      <div class="hero-badge"><span class="dot"></span> Voting is live for this week</div>
+      <h1>Read Smarter,<br><span class="metallic-text">Invest Better</span></h1>
+      <p>Join fellow Popular Investors (non Popular Investors are also welcome !) in a weekly reading journey. Vote on the books that matter and sharpen your edge together.</p>
+      <div class="hero-cta">
+        <a href="#books" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Vote Now
+        </a>
+        <a href="#signup" class="btn btn-secondary">Join the Club</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sign Up -->
+  <section class="signup-section" id="signup">
+    <div class="signup-container reveal">
+      <div class="section-label">Stay In The Loop</div>
+      <h2 class="section-title">Get the weekly pick in your <span class="gold-text">inbox</span></h2>
+      <p class="section-subtitle">A short email each week with the chosen book, discussion topics, and key takeaways from the community.</p>
+      <form class="signup-form" id="signup-form">
+        <input type="email" placeholder="your.email@example.com" required aria-label="Email address">
+        <button type="submit" class="btn btn-primary">Subscribe</button>
+      </form>
+      <p class="signup-note">No spam, ever. Unsubscribe anytime.</p>
+      <div class="signup-success" id="signup-success">You're in! Look out for your first weekly pick email soon.</div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="how-section" id="how">
+    <div class="section-header reveal">
+      <div class="section-label">How It Works</div>
+      <h2 class="section-title">Three <span class="chrome-text">simple</span> steps</h2>
+      <div class="section-divider"></div>
+      <p class="section-subtitle">Every week the community picks a book, reads it together, and grows as investors.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card reveal metallic-border"><div class="step-icon">1</div><h4>Browse & Vote</h4><p>Explore the curated list of investing and historical classics. Upvote the ones that spark your curiosity.</p></div>
+      <div class="step-card reveal metallic-border"><div class="step-icon">2</div><h4>Read Together</h4><p>The top-voted book becomes the weekly pick. Read at your own pace with the community by your side.</p></div>
+      <div class="step-card reveal metallic-border"><div class="step-icon">3</div><h4>Share & Grow</h4><p>Exchange key takeaways and discuss how to apply learnings to real-world investing strategies.</p></div>
+    </div>
+  </section>
+
+  <!-- Books -->
+  <section class="books-section" id="books">
+    <div class="shader-bg" id="books-shader"></div>
+    <div class="section-header reveal" style="position:relative;z-index:2;">
+      <div class="section-label">The Reading List</div>
+      <h2 class="section-title">Vote for next week's <span class="metallic-text">read</span></h2>
+      <div class="section-divider"></div>
+      <p class="section-subtitle">Upvote your pick. The most-voted book becomes our next focus.</p>
+    </div>
+    <div class="books-list" id="books-list" style="position:relative;z-index:2;"></div>
+  </section>
+
+  <!-- Weekly Pick -->
+  <section class="weekly-pick" id="pick">
+    <div class="section-header reveal">
+      <div class="section-label">This Week's Pick</div>
+      <h2 class="section-title">What we're reading <span class="chrome-text">now</span></h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="pick-card reveal metallic-border">
+      <div class="pick-visual">
+        <div class="pick-book-display">
+          <div class="book-spine-title">TBD</div>
+          <div class="book-spine-author">Coming Soon</div>
+        </div>
+      </div>
+      <div class="pick-info">
+        <div class="pick-label">Community Pick &mdash; Voting Open</div>
+        <h3>To Be Decided</h3>
+        <p class="pick-desc">We haven't picked this week's book yet. Head to the voting section above and cast your vote &mdash; the most popular choice will appear here once voting closes.</p>
+        <a href="#books" class="btn btn-primary" style="display:inline-flex;">Cast Your Vote</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- TBD Teaser -->
+  <section class="tbd-section">
+    <div class="tbd-card reveal">
+      <div class="tbd-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      </div>
+      <h3>Stay tuned</h3>
+      <p>Once voting wraps up, the winning book will appear here along with reading stats, community ratings, and a dedicated discussion thread.</p>
+      <a href="#signup" class="btn btn-outline">Get notified</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-content">
+      <div class="footer-brand">PI Reading Club</div>
+      <div class="footer-disclaimer">
+        <strong>Disclaimer:</strong> This website is an independent community project and is <strong>not affiliated with, endorsed by, or associated with eToro</strong> in any way. The content on this site is for informational and educational purposes only and does <strong>not constitute investment advice, financial advice, trading advice, or any other sort of advice</strong>. You should not treat any of the site's content as such. Always do your own research and consult with a qualified financial advisor before making any investment decisions.
+      </div>
+      <div class="footer-bottom">&copy; 2026 PI Reading Club. Built by investors, for investors.</div>
+    </div>
+  </footer>
+
+  <script>
+    // ── Book Data (votes at 0, lesser-known picks, with GoodReads links) ──
+    const books = [
+      { title: "A Random Walk Down Wall Street", author: "Burton Malkiel", category: "investing", description: "A classic argument for efficient markets and passive investing. Malkiel walks readers through every investment strategy and lets the evidence speak.", votes: 0, goodreads: "https://www.goodreads.com/book/show/40242274-a-random-walk-down-wall-street" },
+      { title: "The Lessons of History", author: "Will & Ariel Durant", category: "history", description: "Distilled wisdom from the Durants' lifetime study of civilisations. A slim volume packed with insights on power, economics, and human nature.", votes: 0, goodreads: "https://www.goodreads.com/book/show/174713.The_Lessons_of_History" },
+      { title: "Capital in the Twenty-First Century", author: "Thomas Piketty", category: "economics", description: "A data-driven exploration of wealth and inequality across centuries that changed the way we debate economic policy.", votes: 0, goodreads: "https://www.goodreads.com/book/show/18736925-capital-in-the-twenty-first-century" },
+      { title: "Guns, Germs, and Steel", author: "Jared Diamond", category: "history", description: "Why did history unfold differently on different continents? Diamond's answer reshaped how we think about geography and civilisation.", votes: 0, goodreads: "https://www.goodreads.com/book/show/1842.Guns_Germs_and_Steel" },
+      { title: "The Man Who Solved the Market", author: "Gregory Zuckerman", category: "investing", description: "The secretive story of Jim Simons and Renaissance Technologies, the most successful quantitative hedge fund in history.", votes: 0, goodreads: "https://www.goodreads.com/book/show/43889703-the-man-who-solved-the-market" },
+      { title: "Influence", author: "Robert Cialdini", category: "psychology", description: "The psychology of persuasion explained through six universal principles. Essential reading for understanding market sentiment and decision-making.", votes: 0, goodreads: "https://www.goodreads.com/book/show/28815.Influence" },
+      { title: "The Alchemy of Finance", author: "George Soros", category: "investing", description: "Soros explains his theory of reflexivity and how feedback loops in markets create both opportunity and crisis.", votes: 0, goodreads: "https://www.goodreads.com/book/show/369708" },
+      { title: "Fooled by Randomness", author: "Nassim Nicholas Taleb", category: "psychology", description: "A sharp look at how we mistake luck for skill and noise for signal. Taleb dismantles the illusions that shape financial decision-making.", votes: 0, goodreads: "https://www.goodreads.com/book/show/38315.Fooled_by_Randomness" },
+      { title: "The Most Important Thing", author: "Howard Marks", category: "investing", description: "Oaktree Capital's co-founder distils decades of memos into a guide on second-level thinking, risk, and contrarian investing.", votes: 0, goodreads: "https://www.goodreads.com/book/show/10454418-the-most-important-thing" },
+      { title: "Reminiscences of a Stock Operator", author: "Edwin Lefevre", category: "investing", description: "A fictionalised biography of Jesse Livermore from 1923 that reads like a thriller. Its lessons on crowd psychology remain startlingly relevant.", votes: 0, goodreads: "https://www.goodreads.com/book/show/100779.Reminiscences_of_a_Stock_Operator" },
+      { title: "When Genius Failed", author: "Roger Lowenstein", category: "history", description: "The rise and fall of Long-Term Capital Management. A cautionary tale about leverage, hubris, and the limits of mathematical models.", votes: 0, goodreads: "https://www.goodreads.com/book/show/10669.When_Genius_Failed" },
+      { title: "The Great Mental Models", author: "Shane Parrish", category: "psychology", description: "A toolkit of cross-disciplinary thinking frameworks. Parrish shows how mental models from science, economics, and philosophy sharpen decision-making.", votes: 0, goodreads: "https://www.goodreads.com/book/show/44245196-the-great-mental-models" }
+    ];
+
+    // Load stored votes
+    const storedVotes = JSON.parse(localStorage.getItem('bookVotes-v2') || '{}');
+    books.forEach(b => { if (storedVotes[b.title] !== undefined) b.votes = storedVotes[b.title]; });
+    const votedBooks = new Set(JSON.parse(localStorage.getItem('votedBooks-v2') || '[]'));
+
+    function saveVotes() {
+      const obj = {}; books.forEach(b => obj[b.title] = b.votes);
+      localStorage.setItem('bookVotes-v2', JSON.stringify(obj));
+    }
+
+    function renderBooks() {
+      const list = document.getElementById('books-list');
+      const sorted = [...books].sort((a, b) => b.votes - a.votes);
+      const maxVotes = Math.max(...sorted.map(b => b.votes), 1);
+
+      list.innerHTML = sorted.map((book, i) => {
+        const catClass = { investing: 'cat-investing', history: 'cat-history', psychology: 'cat-psychology', economics: 'cat-economics' }[book.category];
+        const isVoted = votedBooks.has(book.title);
+        const pct = maxVotes > 0 ? (book.votes / maxVotes) * 100 : 0;
+        const safeTitle = book.title.replace(/'/g, "\\'");
+
+        return `
+          <div class="book-item reveal">
+            <div class="book-rank-num">${i + 1}</div>
+            <div class="book-info">
+              <div class="book-info-top">
+                <a href="${book.goodreads}" target="_blank" rel="noopener noreferrer" class="book-title-link"><span class="book-title">${book.title}</span></a>
+                <span class="book-category ${catClass}">${book.category}</span>
+              </div>
+              <div class="book-author">by ${book.author}</div>
+              <div class="book-description">${book.description}</div>
+              <a href="${book.goodreads}" target="_blank" rel="noopener noreferrer" class="goodreads-link">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                View on Goodreads
+              </a>
+            </div>
+            <div class="book-progress-area">
+              <div class="progress-bar-track"><div class="progress-bar-fill" style="width: ${pct}%"></div></div>
+              <span class="vote-count ${isVoted ? 'active' : ''}"><span class="vote-count-num">${book.votes}</span></span>
+              <button class="vote-btn ${isVoted ? 'voted' : ''}" onclick="toggleVote('${safeTitle}')">${isVoted ? '&#10003; Voted' : '&#9650; Vote'}</button>
+            </div>
+          </div>`;
+      }).join('');
+      observeReveals();
+    }
+
+    function toggleVote(title) {
+      const book = books.find(b => b.title === title);
+      if (!book) return;
+      if (votedBooks.has(title)) { votedBooks.delete(title); book.votes = Math.max(0, book.votes - 1); }
+      else { votedBooks.add(title); book.votes++; }
+      localStorage.setItem('votedBooks-v2', JSON.stringify([...votedBooks]));
+      saveVotes();
+      renderBooks();
+    }
+
+    document.getElementById('signup-form').addEventListener('submit', function(e) {
+      e.preventDefault(); this.style.display = 'none';
+      document.getElementById('signup-success').classList.add('show');
+    });
+
+    function observeReveals() {
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach((entry, i) => { if (entry.isIntersecting) { setTimeout(() => entry.target.classList.add('visible'), i * 60); observer.unobserve(entry.target); } });
+      }, { threshold: 0.08 });
+      document.querySelectorAll('.reveal:not(.visible)').forEach(el => observer.observe(el));
+    }
+
+    window.addEventListener('scroll', () => { document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50); });
+
+    renderBooks();
+
+    // ── THREE.JS ──
+    (function() {
+      const canvas = document.getElementById('three-canvas');
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.z = 30;
+
+      const particleCount = 150;
+      const positions = new Float32Array(particleCount * 3);
+      const velocities = [];
+      const sizes = new Float32Array(particleCount);
+      for (let i = 0; i < particleCount; i++) {
+        positions[i*3]=(Math.random()-0.5)*60; positions[i*3+1]=(Math.random()-0.5)*60; positions[i*3+2]=(Math.random()-0.5)*30;
+        velocities.push({ x:(Math.random()-0.5)*0.005, y:(Math.random()-0.5)*0.005+0.003, z:(Math.random()-0.5)*0.002 });
+        sizes[i]=Math.random()*3+1;
+      }
+      const pGeom = new THREE.BufferGeometry();
+      pGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      pGeom.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+      const pMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false,
+        uniforms: { uTime: { value: 0 } },
+        vertexShader: `attribute float size; uniform float uTime; varying float vAlpha;
+          void main() { vec3 pos=position; pos.y+=sin(uTime*0.3+position.x*0.5)*0.8; pos.x+=cos(uTime*0.2+position.y*0.3)*0.4;
+          vec4 mv=modelViewMatrix*vec4(pos,1.0); gl_PointSize=size*(22.0/-mv.z); gl_Position=projectionMatrix*mv;
+          vAlpha=0.12+0.18*sin(uTime*0.7+position.x*0.3); }`,
+        fragmentShader: `varying float vAlpha; void main() { float d=length(gl_PointCoord-0.5);
+          if(d>0.5)discard; float g=1.0-smoothstep(0.0,0.5,d);
+          vec3 core=vec3(0.85,0.95,0.88); vec3 edge=vec3(0.13,0.77,0.37);
+          gl_FragColor=vec4(mix(core,edge,smoothstep(0.0,0.45,d)),vAlpha*g*0.55); }`
+      });
+      scene.add(new THREE.Points(pGeom, pMat));
+
+      const torusGroup = new THREE.Group(); scene.add(torusGroup);
+      for (let i=0;i<6;i++) {
+        const g = new THREE.TorusKnotGeometry(1.5+Math.random()*2,0.12+Math.random()*0.12,100,16,2+Math.floor(Math.random()*3),3+Math.floor(Math.random()*5));
+        const m = new THREE.MeshPhysicalMaterial({ color: new THREE.Color().setHSL(0.38+Math.random()*0.06,0.4+Math.random()*0.3,0.4+Math.random()*0.2), metalness:1.0, roughness:0.08, transparent:true, opacity:0.06+Math.random()*0.06, clearcoat:1.0, clearcoatRoughness:0.05, wireframe:Math.random()>0.4 });
+        const mesh = new THREE.Mesh(g, m);
+        mesh.position.set((Math.random()-0.5)*45,(Math.random()-0.5)*50,(Math.random()-0.5)*15-5);
+        mesh.userData = { rx:(Math.random()-0.5)*0.003, ry:(Math.random()-0.5)*0.003, fs:Math.random()*0.5+0.3, fa:Math.random()*0.6+0.3, by:mesh.position.y };
+        torusGroup.add(mesh);
+      }
+      scene.add(new THREE.DirectionalLight(0xbbf7d0,1.5).translateX(5).translateY(5).translateZ(5));
+      scene.add(new THREE.DirectionalLight(0x4ade80,1.0).translateX(-5).translateY(-3).translateZ(3));
+      scene.add(new THREE.PointLight(0xffffff,0.5,50));
+      scene.add(new THREE.AmbientLight(0xffffff,0.25));
+
+      const mouse = new THREE.Vector2();
+      window.addEventListener('mousemove', e => { mouse.x=(e.clientX/window.innerWidth)*2-1; mouse.y=-(e.clientY/window.innerHeight)*2+1; });
+      const clock = new THREE.Clock();
+      (function animate() {
+        requestAnimationFrame(animate); const t=clock.getElapsedTime();
+        pMat.uniforms.uTime.value=t;
+        const pos=pGeom.attributes.position.array;
+        for(let i=0;i<particleCount;i++){ pos[i*3]+=velocities[i].x; pos[i*3+1]+=velocities[i].y;
+          if(pos[i*3+1]>30)pos[i*3+1]=-30; if(Math.abs(pos[i*3])>30)velocities[i].x*=-1; }
+        pGeom.attributes.position.needsUpdate=true;
+        torusGroup.children.forEach(m => { m.rotation.x+=m.userData.rx; m.rotation.y+=m.userData.ry; m.position.y=m.userData.by+Math.sin(t*m.userData.fs)*m.userData.fa; });
+        camera.position.x+=(mouse.x*2-camera.position.x)*0.01; camera.position.y+=(mouse.y*1.5-camera.position.y)*0.01;
+        camera.lookAt(0,0,0); renderer.render(scene,camera);
+      })();
+      window.addEventListener('resize', () => { camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
+    })();
+
+    // ── Paper Design Shaders ──
+    function initPaperShaders() {
+      if (!window.ShaderMount || !window.meshGradientFragmentShader) return;
+      const c = window.getShaderColorFromString;
+      try { new window.ShaderMount(document.getElementById('hero-shader'), window.meshGradientFragmentShader, {
+        u_colors:[c('#dcfce7'),c('#bbf7d0'),c('#86efac'),c('#f0fdf4')], u_colorsCount:4, u_distortion:0.4, u_swirl:0.3, u_grainMixer:0.0, u_grainOverlay:0.0, u_scale:1.0, u_rotation:0, u_offsetX:0, u_offsetY:0 }, undefined, 0.15); } catch(e) {}
+      try { new window.ShaderMount(document.getElementById('books-shader'), window.meshGradientFragmentShader, {
+        u_colors:[c('#f0fdf4'),c('#dcfce7'),c('#ffffff'),c('#bbf7d0')], u_colorsCount:4, u_distortion:0.25, u_swirl:0.2, u_grainMixer:0.0, u_grainOverlay:0.0, u_scale:1.0, u_rotation:0, u_offsetX:0, u_offsetY:0 }, undefined, 0.1); } catch(e) {}
+    }
+    if (window.ShaderMount) initPaperShaders();
+    else window.addEventListener('shaders-ready', initPaperShaders);
+  </script>
+</body>
+</html>

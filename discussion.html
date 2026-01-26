@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discussion | PI Reading Club</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='32' height='32' rx='8' fill='%2316a34a'/%3E%3Cpath d='M7 8C7 6.89543 7.89543 6 9 6H15C16.1046 6 17 6.89543 17 8V22C17 22 14.5 20 12 20C9.5 20 7 22 7 22V8Z' fill='white' fill-opacity='0.9'/%3E%3Cpath d='M17 8C17 6.89543 17.8954 6 19 6H23C24.1046 6 25 6.89543 25 8V22C25 22 22.5 20 20 20C17.5 20 17 22 17 22V8Z' fill='white' fill-opacity='0.65'/%3E%3C/svg%3E">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script type="module">
+    import { ShaderMount, neuroNoiseFragmentShader, getShaderColorFromString } from 'https://cdn.jsdelivr.net/npm/@paper-design/shaders@latest/+esm';
+    window.ShaderMount = ShaderMount;
+    window.neuroNoiseFragmentShader = neuroNoiseFragmentShader;
+    window.getShaderColorFromString = getShaderColorFromString;
+    window.dispatchEvent(new Event('shaders-ready'));
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --green-50: #f0fdf4; --green-100: #dcfce7; --green-200: #bbf7d0;
+      --green-300: #86efac; --green-400: #4ade80; --green-500: #22c55e;
+      --green-600: #16a34a; --green-700: #15803d; --green-800: #166534;
+      --white: #ffffff;
+      --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+      --gray-300: #d1d5db; --gray-400: #9ca3af; --gray-500: #6b7280;
+      --gray-600: #4b5563; --gray-700: #374151; --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--white);
+      color: var(--gray-800);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    #three-canvas {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 0; pointer-events: none;
+    }
+
+    .shader-bg {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 0; pointer-events: none; overflow: hidden;
+    }
+    .shader-bg canvas { width: 100% !important; height: 100% !important; }
+
+    /* Navigation */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
+      backdrop-filter: blur(20px) saturate(1.5);
+      background: rgba(255, 255, 255, 0.75);
+      border-bottom: 1px solid rgba(34, 197, 94, 0.08);
+      transition: all 0.3s ease;
+    }
+    nav.scrolled { background: rgba(255, 255, 255, 0.92); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.06); }
+
+    .nav-brand {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-weight: 800; font-size: 1.2rem; color: var(--green-800); text-decoration: none;
+    }
+    .nav-brand svg { width: 32px; height: 32px; }
+
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a { text-decoration: none; color: var(--gray-600); font-weight: 500; font-size: 0.9rem; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--green-600); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.9rem 2rem;
+      border-radius: 12px; font-weight: 600; font-size: 0.95rem;
+      text-decoration: none; transition: all 0.3s ease; cursor: pointer; border: none; font-family: inherit;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--green-600), var(--green-500));
+      color: white; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4); }
+
+    /* Hero */
+    .discussion-hero {
+      position: relative; padding: 8rem 2rem 4rem; text-align: center;
+      background: linear-gradient(180deg, var(--green-50) 0%, var(--white) 100%);
+      overflow: hidden;
+    }
+    .discussion-hero .hero-content { position: relative; z-index: 2; max-width: 700px; margin: 0 auto; }
+
+    .section-label {
+      font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.15em; color: var(--green-600); margin-bottom: 0.75rem;
+    }
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.8rem, 4vw, 2.8rem); color: var(--gray-900); margin-bottom: 1rem;
+    }
+    .section-subtitle {
+      font-size: 1.05rem; color: var(--gray-500); max-width: 550px; margin: 0 auto; line-height: 1.7;
+    }
+
+    .metallic-text {
+      background: linear-gradient(135deg, #1a1a2e 0%, #c0c0c0 20%, #ffffff 40%, #c0c0c0 50%, #e8e8e8 60%, #a0a0a0 80%, #1a1a2e 100%);
+      background-size: 300% 300%;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      animation: metallic-shimmer 5s ease-in-out infinite;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.12));
+    }
+    @keyframes metallic-shimmer { 0% { background-position: 0% 0%; } 50% { background-position: 100% 100%; } 100% { background-position: 0% 0%; } }
+
+    .section-divider {
+      height: 2px; max-width: 200px; margin: 0 auto 2rem;
+      background: linear-gradient(90deg, transparent, rgba(134,239,172,0.5), rgba(255,255,255,0.8), rgba(134,239,172,0.5), transparent);
+      background-size: 200% 100%; animation: border-shimmer 4s ease infinite;
+    }
+    @keyframes border-shimmer { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Discussion */
+    .discussion-section {
+      padding: 3rem 2rem 6rem; position: relative; z-index: 2;
+      background: linear-gradient(180deg, var(--white) 0%, var(--green-50) 100%);
+      overflow: hidden;
+    }
+
+    .discussion-container { max-width: 700px; margin: 0 auto; position: relative; z-index: 2; }
+
+    .discussion-prompt {
+      text-align: center; margin-bottom: 2rem; padding: 1.5rem;
+      background: rgba(255,255,255,0.7); backdrop-filter: blur(10px);
+      border-radius: 16px; border: 1px solid rgba(34, 197, 94, 0.1);
+    }
+    .discussion-prompt p { font-size: 0.95rem; color: var(--gray-600); line-height: 1.7; }
+    .discussion-prompt strong { color: var(--green-700); }
+
+    .comment-form { display: flex; gap: 0.75rem; margin-bottom: 2rem; }
+    .comment-form input {
+      flex: 0 0 140px; padding: 0.8rem 1rem; border-radius: 12px;
+      border: 1.5px solid var(--gray-200); font-size: 0.88rem; font-family: inherit;
+      background: rgba(255,255,255,0.9); outline: none; transition: border-color 0.3s;
+    }
+    .comment-form textarea {
+      flex: 1; padding: 0.8rem 1rem; border-radius: 12px;
+      border: 1.5px solid var(--gray-200); font-size: 0.88rem; font-family: inherit;
+      background: rgba(255,255,255,0.9); outline: none; resize: vertical; min-height: 48px; transition: border-color 0.3s;
+    }
+    .comment-form input:focus, .comment-form textarea:focus {
+      border-color: var(--green-400); box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.08);
+    }
+    .comment-form button { flex-shrink: 0; align-self: flex-end; }
+
+    .comments-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .comment-card {
+      background: rgba(255,255,255,0.85); backdrop-filter: blur(10px);
+      border-radius: 14px; padding: 1.25rem 1.5rem;
+      border: 1px solid rgba(34, 197, 94, 0.06); transition: all 0.3s;
+    }
+    .comment-card:hover { border-color: rgba(34, 197, 94, 0.12); box-shadow: 0 4px 16px rgba(34, 197, 94, 0.06); }
+
+    .comment-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+    .comment-author { display: flex; align-items: center; gap: 0.5rem; }
+    .comment-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--green-400), var(--green-300));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 700; color: white;
+    }
+    .comment-name { font-weight: 600; font-size: 0.88rem; color: var(--gray-800); }
+    .comment-time { font-size: 0.75rem; color: var(--gray-400); }
+    .comment-body { font-size: 0.88rem; color: var(--gray-600); line-height: 1.6; }
+    .comment-actions { display: flex; gap: 1rem; margin-top: 0.75rem; }
+    .comment-like-btn {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      font-size: 0.78rem; font-weight: 500; color: var(--gray-400);
+      background: none; border: none; cursor: pointer; font-family: inherit; transition: color 0.2s; padding: 0;
+    }
+    .comment-like-btn:hover { color: var(--green-600); }
+    .comment-like-btn.liked { color: var(--green-600); font-weight: 600; }
+
+    .empty-state {
+      text-align: center; padding: 3rem 1.5rem;
+      color: var(--gray-400); font-size: 0.95rem;
+    }
+    .empty-state svg { margin-bottom: 1rem; opacity: 0.4; }
+
+    /* Footer */
+    footer {
+      padding: 2rem 2rem 1.5rem; background: var(--gray-900); color: var(--gray-400); text-align: center;
+    }
+    .footer-content { max-width: 700px; margin: 0 auto; }
+    .footer-brand { font-size: 1rem; font-weight: 700; color: var(--green-400); margin-bottom: 0.75rem; }
+    .footer-disclaimer {
+      font-size: 0.75rem; color: var(--gray-500); line-height: 1.7; margin-bottom: 1rem;
+      padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);
+    }
+    .footer-bottom { font-size: 0.72rem; color: var(--gray-600); padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); }
+
+    .reveal { opacity: 0; transform: translateY(20px); transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .comment-form { flex-direction: column; }
+      .comment-form input { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="three-canvas"></canvas>
+
+  <nav id="navbar">
+    <a href="reading-list.html" class="nav-brand">
+      <svg viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="8" fill="#16a34a"/>
+        <path d="M8 22V10h3v5h2V10h3v12h-3v-5h-2v5H8z" fill="white"/>
+        <circle cx="22" cy="16" r="4" stroke="white" stroke-width="2" fill="none"/>
+      </svg>
+      PI Reading Club
+    </a>
+    <ul class="nav-links">
+      <li><a href="reading-list.html">Reading List</a></li>
+      <li><a href="reading-list.html#books">Vote</a></li>
+      <li><a href="#discussion">Discuss</a></li>
+    </ul>
+  </nav>
+
+  <section class="discussion-hero">
+    <div class="shader-bg" id="hero-shader"></div>
+    <div class="hero-content">
+      <div class="section-label">Community</div>
+      <h1 class="section-title">The <span class="metallic-text">Discussion Board</span></h1>
+      <div class="section-divider"></div>
+      <p class="section-subtitle">Share your thoughts on the books we're reading, swap investing insights, and learn from the community. All voices welcome.</p>
+    </div>
+  </section>
+
+  <section class="discussion-section" id="discussion">
+    <div class="shader-bg" id="discussion-shader"></div>
+    <div class="discussion-container">
+      <div class="discussion-prompt reveal">
+        <p><strong>Jump in:</strong> What investing book has changed how you think about money? Share your recommendation and why it stuck with you.</p>
+      </div>
+
+      <form class="comment-form reveal" id="comment-form">
+        <input type="text" placeholder="Your name" id="comment-name" required aria-label="Your name">
+        <textarea placeholder="Share your thoughts..." id="comment-text" required aria-label="Your comment"></textarea>
+        <button type="submit" class="btn btn-primary">Post</button>
+      </form>
+
+      <div class="comments-list" id="comments-list"></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-brand">PI Reading Club</div>
+      <div class="footer-disclaimer">
+        <strong>Disclaimer:</strong> This website is an independent community project and is <strong>not affiliated with, endorsed by, or associated with eToro</strong> in any way. The content on this site is for informational and educational purposes only and does <strong>not constitute investment advice, financial advice, trading advice, or any other sort of advice</strong>. You should not treat any of the site's content as such. Always do your own research and consult with a qualified financial advisor before making any investment decisions.
+      </div>
+      <div class="footer-bottom">&copy; 2026 PI Reading Club. Built by investors, for investors.</div>
+    </div>
+  </footer>
+
+  <script>
+    // ── Discussion / Comments ──
+    const defaultComments = [
+      { name: "Sarah K.", text: "The chapter on compounding in The Psychology of Money was a real eye-opener. I've started thinking about patience as a literal competitive advantage in my portfolio.", time: "2 hours ago", likes: 8, id: 'c1' },
+      { name: "Marco R.", text: "Just finished Reminiscences of a Stock Operator. It's amazing how relevant a book from 1923 still is. The sections on crowd psychology are timeless.", time: "5 hours ago", likes: 12, id: 'c2' },
+      { name: "Alex T.", text: "Has anyone read When Genius Failed? The LTCM story is a masterclass in what happens when you over-leverage, no matter how smart you are.", time: "1 day ago", likes: 5, id: 'c3' },
+      { name: "Priya M.", text: "Howard Marks' The Most Important Thing changed my approach completely. Second-level thinking is hard but it's where the edge is.", time: "2 days ago", likes: 9, id: 'c4' }
+    ];
+
+    let comments = JSON.parse(localStorage.getItem('discussion-comments-v2') || 'null') || defaultComments;
+    const likedComments = new Set(JSON.parse(localStorage.getItem('liked-comments-v2') || '[]'));
+
+    function renderComments() {
+      const container = document.getElementById('comments-list');
+      if (comments.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <p>No comments yet. Be the first to share your thoughts!</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = comments.map(c => {
+        const initials = c.name.split(' ').map(w => w[0]).join('').substring(0, 2);
+        const isLiked = likedComments.has(c.id);
+        return `
+          <div class="comment-card reveal">
+            <div class="comment-header">
+              <div class="comment-author">
+                <div class="comment-avatar">${initials}</div>
+                <span class="comment-name">${c.name}</span>
+              </div>
+              <span class="comment-time">${c.time}</span>
+            </div>
+            <div class="comment-body">${c.text}</div>
+            <div class="comment-actions">
+              <button class="comment-like-btn ${isLiked ? 'liked' : ''}" onclick="toggleLike('${c.id}')">
+                ${isLiked ? '&#9829;' : '&#9825;'} <span>${c.likes}</span>
+              </button>
+            </div>
+          </div>`;
+      }).join('');
+      observeReveals();
+    }
+
+    function toggleLike(id) {
+      const comment = comments.find(c => c.id === id);
+      if (!comment) return;
+      if (likedComments.has(id)) { likedComments.delete(id); comment.likes = Math.max(0, comment.likes - 1); }
+      else { likedComments.add(id); comment.likes++; }
+      localStorage.setItem('liked-comments-v2', JSON.stringify([...likedComments]));
+      localStorage.setItem('discussion-comments-v2', JSON.stringify(comments));
+      renderComments();
+    }
+
+    document.getElementById('comment-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const name = document.getElementById('comment-name').value.trim();
+      const text = document.getElementById('comment-text').value.trim();
+      if (!name || !text) return;
+      comments.unshift({ name, text, time: 'Just now', likes: 0, id: 'c' + Date.now() });
+      localStorage.setItem('discussion-comments-v2', JSON.stringify(comments));
+      renderComments();
+      this.reset();
+    });
+
+    function observeReveals() {
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach((entry, i) => {
+          if (entry.isIntersecting) { setTimeout(() => entry.target.classList.add('visible'), i * 60); observer.unobserve(entry.target); }
+        });
+      }, { threshold: 0.08 });
+      document.querySelectorAll('.reveal:not(.visible)').forEach(el => observer.observe(el));
+    }
+
+    window.addEventListener('scroll', () => { document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50); });
+
+    renderComments();
+
+    // ── THREE.JS Background (simplified) ──
+    (function() {
+      const canvas = document.getElementById('three-canvas');
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.z = 30;
+
+      const particleCount = 80;
+      const positions = new Float32Array(particleCount * 3);
+      const velocities = [];
+      const sizes = new Float32Array(particleCount);
+      for (let i = 0; i < particleCount; i++) {
+        positions[i*3] = (Math.random()-0.5)*60; positions[i*3+1] = (Math.random()-0.5)*60; positions[i*3+2] = (Math.random()-0.5)*30;
+        velocities.push({ x: (Math.random()-0.5)*0.004, y: (Math.random()-0.5)*0.004+0.002, z: (Math.random()-0.5)*0.002 });
+        sizes[i] = Math.random()*2.5+1;
+      }
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geom.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+      const mat = new THREE.ShaderMaterial({
+        transparent: true, depthWrite: false,
+        uniforms: { uTime: { value: 0 } },
+        vertexShader: `attribute float size; uniform float uTime; varying float vAlpha;
+          void main() { vec3 pos = position; pos.y += sin(uTime*0.3+position.x*0.5)*0.8;
+          vec4 mv = modelViewMatrix*vec4(pos,1.0); gl_PointSize = size*(20.0/-mv.z);
+          gl_Position = projectionMatrix*mv; vAlpha = 0.1+0.15*sin(uTime*0.7+position.x*0.3); }`,
+        fragmentShader: `varying float vAlpha; void main() { float d = length(gl_PointCoord-0.5);
+          if(d>0.5)discard; float g=1.0-smoothstep(0.0,0.5,d);
+          vec3 core=vec3(0.85,0.95,0.88); vec3 edge=vec3(0.13,0.77,0.37);
+          gl_FragColor=vec4(mix(core,edge,smoothstep(0.0,0.45,d)),vAlpha*g*0.5); }`
+      });
+      scene.add(new THREE.Points(geom, mat));
+
+      const mouse = new THREE.Vector2();
+      window.addEventListener('mousemove', e => { mouse.x=(e.clientX/window.innerWidth)*2-1; mouse.y=-(e.clientY/window.innerHeight)*2+1; });
+      const clock = new THREE.Clock();
+      (function animate() {
+        requestAnimationFrame(animate);
+        const t = clock.getElapsedTime();
+        mat.uniforms.uTime.value = t;
+        const pos = geom.attributes.position.array;
+        for (let i=0;i<particleCount;i++) { pos[i*3]+=velocities[i].x; pos[i*3+1]+=velocities[i].y;
+          if(pos[i*3+1]>30) pos[i*3+1]=-30; if(Math.abs(pos[i*3])>30) velocities[i].x*=-1; }
+        geom.attributes.position.needsUpdate = true;
+        camera.position.x += (mouse.x*1.5-camera.position.x)*0.008;
+        camera.position.y += (mouse.y*1-camera.position.y)*0.008;
+        camera.lookAt(0,0,0);
+        renderer.render(scene,camera);
+      })();
+      window.addEventListener('resize', () => { camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
+    })();
+
+    // ── Paper Design Shaders ──
+    function initPaperShaders() {
+      if (!window.ShaderMount || !window.neuroNoiseFragmentShader || !window.getShaderColorFromString) return;
+      const c = window.getShaderColorFromString;
+      try {
+        new window.ShaderMount(document.getElementById('discussion-shader'), window.neuroNoiseFragmentShader, {
+          u_colorFront: c('#4ade80'), u_colorMid: c('#bbf7d0'), u_colorBack: c('#f0fdf4'),
+          u_brightness: 0.8, u_contrast: 0.2, u_scale: 1.0, u_rotation: 0, u_offsetX: 0, u_offsetY: 0,
+        }, undefined, 0.06);
+      } catch(e) {}
+    }
+    if (window.ShaderMount) initPaperShaders();
+    else window.addEventListener('shaders-ready', initPaperShaders);
+  </script>
+</body>
+</html>
