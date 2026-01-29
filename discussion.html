@@ -137,7 +137,26 @@
     .discussion-prompt p { font-size: 0.95rem; color: var(--gray-600); line-height: 1.7; }
     .discussion-prompt strong { color: var(--green-700); }
 
-    .comment-form { display: flex; gap: 0.75rem; margin-bottom: 2rem; }
+    /* New Post Section */
+    .new-post-section {
+      background: linear-gradient(135deg, var(--green-50), rgba(187,247,208,0.3));
+      border-radius: 20px; padding: 2rem; margin-bottom: 2.5rem;
+      border: 1.5px solid rgba(34, 197, 94, 0.15);
+      box-shadow: 0 4px 20px rgba(34, 197, 94, 0.08);
+    }
+    .new-post-header {
+      display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem;
+    }
+    .new-post-icon {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--green-500), var(--green-400));
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    }
+    .new-post-icon svg { width: 20px; height: 20px; color: white; }
+    .new-post-title { font-weight: 700; font-size: 1.1rem; color: var(--gray-800); }
+
+    .comment-form { display: flex; gap: 0.75rem; margin-bottom: 0; flex-wrap: wrap; }
     .comment-form input {
       flex: 0 0 140px; padding: 0.8rem 1rem; border-radius: 12px;
       border: 1.5px solid var(--gray-200); font-size: 0.88rem; font-family: inherit;
@@ -255,11 +274,6 @@
 
   <nav id="navbar">
     <a href="index.html" class="nav-brand">
-      <svg viewBox="0 0 32 32" fill="none">
-        <rect width="32" height="32" rx="8" fill="#16a34a"/>
-        <path d="M8 22V10h3v5h2V10h3v12h-3v-5h-2v5H8z" fill="white"/>
-        <circle cx="22" cy="16" r="4" stroke="white" stroke-width="2" fill="none"/>
-      </svg>
       PI Reading Club
     </a>
     <ul class="nav-links">
@@ -280,15 +294,25 @@
   <section class="discussion-section" id="discussion">
     <div class="shader-bg" id="discussion-shader"></div>
     <div class="discussion-container">
-      <div class="discussion-prompt reveal">
-        <p><strong>Jump in:</strong> What investing book has changed how you think about money? Share your recommendation and why it stuck with you.</p>
+      <div class="new-post-section reveal">
+        <div class="new-post-header">
+          <div class="new-post-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </div>
+          <span class="new-post-title">Start a New Discussion</span>
+        </div>
+        <form class="comment-form" id="comment-form">
+          <input type="text" placeholder="Your name" id="comment-name" required aria-label="Your name">
+          <textarea placeholder="What's on your mind? Share your investing insights, book recommendations, or questions..." id="comment-text" required aria-label="Your comment" style="min-height: 80px;"></textarea>
+          <button type="submit" class="btn btn-primary">Post Discussion</button>
+        </form>
       </div>
 
-      <form class="comment-form reveal" id="comment-form">
-        <input type="text" placeholder="Your name" id="comment-name" required aria-label="Your name">
-        <textarea placeholder="Share your thoughts..." id="comment-text" required aria-label="Your comment"></textarea>
-        <button type="submit" class="btn btn-primary">Post</button>
-      </form>
+      <div class="discussion-prompt reveal">
+        <p><strong>Discussion topic:</strong> What investing book has changed how you think about money? Share your recommendation and why it stuck with you.</p>
+      </div>
 
       <div class="comments-list" id="comments-list"></div>
     </div>
