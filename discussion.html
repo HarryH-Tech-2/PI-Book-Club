@@ -247,6 +247,51 @@
     }
     .empty-state svg { margin-bottom: 1rem; opacity: 0.4; }
 
+    /* Current Book Card */
+    .current-book-card {
+      background: linear-gradient(135deg, var(--gray-800), var(--gray-900));
+      border-radius: 20px; padding: 2rem; margin-bottom: 2rem;
+      display: flex; gap: 1.5rem; align-items: center;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      position: relative; overflow: hidden;
+    }
+    .current-book-card::before {
+      content: ''; position: absolute; top: 0; right: 0; width: 150px; height: 150px;
+      background: radial-gradient(circle, rgba(34,197,94,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .book-cover {
+      width: 100px; height: 150px; border-radius: 8px;
+      background: linear-gradient(145deg, var(--green-600), var(--green-700));
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 1rem; text-align: center; flex-shrink: 0;
+      box-shadow: -4px 4px 15px rgba(0,0,0,0.3);
+    }
+    .book-cover-title {
+      font-family: 'Playfair Display', serif; font-size: 0.75rem;
+      font-weight: 700; color: white; line-height: 1.2;
+    }
+    .book-cover-author { font-size: 0.6rem; color: rgba(255,255,255,0.7); margin-top: 0.5rem; }
+    .book-details { flex: 1; color: white; position: relative; z-index: 1; }
+    .book-reading-label {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--green-400); margin-bottom: 0.5rem;
+    }
+    .book-details-title {
+      font-family: 'Playfair Display', serif; font-size: 1.4rem;
+      font-weight: 700; margin-bottom: 0.25rem;
+    }
+    .book-details-author { font-size: 0.9rem; color: var(--gray-400); margin-bottom: 0.75rem; }
+    .book-details-desc { font-size: 0.85rem; color: var(--gray-300); line-height: 1.6; }
+    .no-book-state {
+      text-align: center; padding: 1rem; color: var(--gray-400);
+    }
+    .no-book-state p { margin-bottom: 1rem; }
+    @media (max-width: 600px) {
+      .current-book-card { flex-direction: column; text-align: center; }
+      .book-cover { width: 80px; height: 120px; }
+    }
+
     /* Footer */
     footer {
       padding: 2rem 2rem 1.5rem; background: var(--gray-900); color: var(--gray-400); text-align: center;
@@ -284,34 +329,41 @@
   <section class="discussion-hero">
     <div class="shader-bg" id="hero-shader"></div>
     <div class="hero-content">
-      <div class="section-label">Community</div>
-      <h1 class="section-title">The <span class="metallic-text">Discussion Board</span></h1>
+      <div class="section-label">This Week's Read</div>
+      <h1 class="section-title">Book <span class="metallic-text">Discussion</span></h1>
       <div class="section-divider"></div>
-      <p class="section-subtitle">Share your thoughts on the books we're reading, swap investing insights, and learn from the community. All voices welcome.</p>
+      <p class="section-subtitle">Share your thoughts, insights, and questions about the book we're reading together. Join the conversation below.</p>
     </div>
   </section>
 
   <section class="discussion-section" id="discussion">
     <div class="shader-bg" id="discussion-shader"></div>
     <div class="discussion-container">
-      <div class="new-post-section reveal">
+      <!-- Current Book Card -->
+      <div class="current-book-card reveal" id="current-book-card">
+        <!-- Will be populated by JavaScript -->
+      </div>
+
+      <!-- New Post Section -->
+      <div class="new-post-section reveal" id="new-post-section">
         <div class="new-post-header">
           <div class="new-post-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 5v14M5 12h14"/>
             </svg>
           </div>
-          <span class="new-post-title">Start a New Discussion</span>
+          <span class="new-post-title">Share Your Thoughts</span>
         </div>
         <form class="comment-form" id="comment-form">
           <input type="text" placeholder="Your name" id="comment-name" required aria-label="Your name">
-          <textarea placeholder="What's on your mind? Share your investing insights, book recommendations, or questions..." id="comment-text" required aria-label="Your comment" style="min-height: 80px;"></textarea>
-          <button type="submit" class="btn btn-primary">Post Discussion</button>
+          <textarea placeholder="What did you think of this chapter? Any key takeaways or questions?" id="comment-text" required aria-label="Your comment" style="min-height: 80px;"></textarea>
+          <button type="submit" class="btn btn-primary">Post</button>
         </form>
       </div>
 
+      <!-- Discussion Threads -->
       <div class="discussion-prompt reveal">
-        <p><strong>Discussion topic:</strong> What investing book has changed how you think about money? Share your recommendation and why it stuck with you.</p>
+        <p><strong>Discussion threads:</strong> Share your insights, favorite quotes, or questions about the book. Reply to others to keep the conversation going!</p>
       </div>
 
       <div class="comments-list" id="comments-list"></div>
@@ -329,11 +381,42 @@
   </footer>
 
   <script>
+    // ── Current Book (update this when a book is selected) ──
+    // Set to null when no book is selected, or an object with book details
+    const currentBook = null; // Example: { title: "The Psychology of Money", author: "Morgan Housel", description: "Timeless lessons on wealth, greed, and happiness." }
+
+    function renderCurrentBook() {
+      const container = document.getElementById('current-book-card');
+      if (!currentBook) {
+        container.innerHTML = `
+          <div class="no-book-state" style="width: 100%;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity: 0.5; margin-bottom: 1rem;">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+            <p style="color: var(--gray-300); font-size: 1rem; margin-bottom: 0.5rem;">No book selected yet</p>
+            <p style="color: var(--gray-500); font-size: 0.85rem;">Once voting closes, this week's book will appear here and the discussion can begin!</p>
+            <a href="index.html#books" class="btn btn-primary" style="margin-top: 1rem; display: inline-flex;">Vote for a Book</a>
+          </div>`;
+        return;
+      }
+      container.innerHTML = `
+        <div class="book-cover">
+          <div class="book-cover-title">${escapeHtml(currentBook.title)}</div>
+          <div class="book-cover-author">${escapeHtml(currentBook.author)}</div>
+        </div>
+        <div class="book-details">
+          <div class="book-reading-label">Currently Reading</div>
+          <h2 class="book-details-title">${escapeHtml(currentBook.title)}</h2>
+          <p class="book-details-author">by ${escapeHtml(currentBook.author)}</p>
+          <p class="book-details-desc">${escapeHtml(currentBook.description)}</p>
+        </div>`;
+    }
+
     // ── Discussion / Comments ──
     const defaultComments = [];
 
-    let comments = JSON.parse(localStorage.getItem('discussion-comments-v3') || 'null') || defaultComments;
-    const likedComments = new Set(JSON.parse(localStorage.getItem('liked-comments-v3') || '[]'));
+    let comments = JSON.parse(localStorage.getItem('discussion-comments-v4') || 'null') || defaultComments;
+    const likedComments = new Set(JSON.parse(localStorage.getItem('liked-comments-v4') || '[]'));
     let activeReplyForm = null;
 
     function renderComments() {
@@ -342,7 +425,7 @@
         container.innerHTML = `
           <div class="empty-state">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            <p>No comments yet. Be the first to share your thoughts!</p>
+            <p>No discussion posts yet. Be the first to share your thoughts on the book!</p>
           </div>`;
         return;
       }
@@ -454,7 +537,7 @@
       });
 
       activeReplyForm = null;
-      localStorage.setItem('discussion-comments-v3', JSON.stringify(comments));
+      localStorage.setItem('discussion-comments-v4', JSON.stringify(comments));
       renderComments();
     }
 
@@ -463,8 +546,8 @@
       if (!comment) return;
       if (likedComments.has(id)) { likedComments.delete(id); comment.likes = Math.max(0, comment.likes - 1); }
       else { likedComments.add(id); comment.likes++; }
-      localStorage.setItem('liked-comments-v3', JSON.stringify([...likedComments]));
-      localStorage.setItem('discussion-comments-v3', JSON.stringify(comments));
+      localStorage.setItem('liked-comments-v4', JSON.stringify([...likedComments]));
+      localStorage.setItem('discussion-comments-v4', JSON.stringify(comments));
       renderComments();
     }
 
@@ -476,8 +559,8 @@
 
       if (likedComments.has(replyId)) { likedComments.delete(replyId); reply.likes = Math.max(0, reply.likes - 1); }
       else { likedComments.add(replyId); reply.likes++; }
-      localStorage.setItem('liked-comments-v3', JSON.stringify([...likedComments]));
-      localStorage.setItem('discussion-comments-v3', JSON.stringify(comments));
+      localStorage.setItem('liked-comments-v4', JSON.stringify([...likedComments]));
+      localStorage.setItem('discussion-comments-v4', JSON.stringify(comments));
       renderComments();
     }
 
@@ -487,7 +570,7 @@
       const text = document.getElementById('comment-text').value.trim();
       if (!name || !text) return;
       comments.unshift({ name, text, time: 'Just now', likes: 0, id: 'c' + Date.now(), replies: [] });
-      localStorage.setItem('discussion-comments-v3', JSON.stringify(comments));
+      localStorage.setItem('discussion-comments-v4', JSON.stringify(comments));
       renderComments();
       this.reset();
     });
@@ -503,6 +586,7 @@
 
     window.addEventListener('scroll', () => { document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50); });
 
+    renderCurrentBook();
     renderComments();
 
     // ── THREE.JS Background (simplified) ──
