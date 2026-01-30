@@ -459,11 +459,34 @@
       observeReveals();
     }
 
+    function getWeekKey() {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), 0, 1);
+      const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
+      return `${now.getFullYear()}-W${week}`;
+    }
+
     function toggleVote(title) {
       const book = books.find(b => b.title === title);
       if (!book) return;
-      if (votedBooks.has(title)) { votedBooks.delete(title); book.votes = Math.max(0, book.votes - 1); }
-      else { votedBooks.add(title); book.votes++; }
+      const weekKey = getWeekKey();
+      const votedThisWeek = localStorage.getItem('votedWeek-v2');
+
+      if (votedBooks.has(title)) {
+        // Allow removing your own vote
+        votedBooks.delete(title);
+        book.votes = Math.max(0, book.votes - 1);
+        localStorage.removeItem('votedWeek-v2');
+      } else {
+        // Check if already voted this week
+        if (votedThisWeek === weekKey) {
+          alert('You can only vote for one book per week. Remove your current vote first to vote for a different book.');
+          return;
+        }
+        votedBooks.add(title);
+        book.votes++;
+        localStorage.setItem('votedWeek-v2', weekKey);
+      }
       localStorage.setItem('votedBooks-v2', JSON.stringify([...votedBooks]));
       saveVotes();
       renderBooks();
