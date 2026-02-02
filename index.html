@@ -413,33 +413,27 @@
       { title: "The Great Mental Models", author: "Shane Parrish", category: "psychology", description: "A toolkit of cross-disciplinary thinking frameworks. Parrish shows how mental models from science, economics, and philosophy sharpen decision-making.", votes: 0, goodreads: "https://www.goodreads.com/book/show/44245196-the-great-mental-models" }
     ];
 
-    // JSONbin config for shared vote storage
-    const JSONBIN_ID = '6980cc83d0ea881f409b6c12';
-    const JSONBIN_KEY = '$2a$10$hJ6vp5NmBuxvfRaozxEtGeGDT093BqMjJkwTE/M/xHeyZA0hNk/ou';
-
     // Track which book this user voted for (localStorage - prevents double voting from same browser)
     let userVotedBook = localStorage.getItem('userVotedBook-v3') || null;
 
-    // Fetch shared votes from JSONbin on load
+    // Fetch shared votes from serverless API
     async function loadVotes() {
       try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, {
-          headers: { 'X-Access-Key': JSONBIN_KEY }
-        });
+        const res = await fetch('/api/votes');
         const data = await res.json();
-        const sharedVotes = data.record.votes || {};
+        const sharedVotes = data.votes || {};
         books.forEach(b => { if (sharedVotes[b.title] !== undefined) b.votes = sharedVotes[b.title]; });
         renderBooks();
       } catch (e) { console.error('Failed to load votes:', e); renderBooks(); }
     }
 
-    // Save votes to JSONbin
+    // Save votes via serverless API
     async function saveVotes() {
       const votes = {}; books.forEach(b => votes[b.title] = b.votes);
       try {
-        await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
+        await fetch('/api/votes', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'X-Access-Key': JSONBIN_KEY },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ votes })
         });
       } catch (e) { console.error('Failed to save votes:', e); }
