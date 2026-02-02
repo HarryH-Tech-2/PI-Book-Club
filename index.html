@@ -413,14 +413,36 @@
       { title: "The Great Mental Models", author: "Shane Parrish", category: "psychology", description: "A toolkit of cross-disciplinary thinking frameworks. Parrish shows how mental models from science, economics, and philosophy sharpen decision-making.", votes: 0, goodreads: "https://www.goodreads.com/book/show/44245196-the-great-mental-models" }
     ];
 
-    // Load stored votes
-    const storedVotes = JSON.parse(localStorage.getItem('bookVotes-v2') || '{}');
-    books.forEach(b => { if (storedVotes[b.title] !== undefined) b.votes = storedVotes[b.title]; });
-    const votedBooks = new Set(JSON.parse(localStorage.getItem('votedBooks-v2') || '[]'));
+    // JSONbin config for shared vote storage
+    const JSONBIN_ID = '6980cc83d0ea881f409b6c12';
+    const JSONBIN_KEY = '$2a$10$hJ6vp5NmBuxvfRaozxEtGeGDT093BqMjJkwTE/M/xHeyZA0hNk/ou';
 
-    function saveVotes() {
-      const obj = {}; books.forEach(b => obj[b.title] = b.votes);
-      localStorage.setItem('bookVotes-v2', JSON.stringify(obj));
+    // Track which book this user voted for (localStorage - prevents double voting from same browser)
+    let userVotedBook = localStorage.getItem('userVotedBook-v3') || null;
+
+    // Fetch shared votes from JSONbin on load
+    async function loadVotes() {
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, {
+          headers: { 'X-Access-Key': JSONBIN_KEY }
+        });
+        const data = await res.json();
+        const sharedVotes = data.record.votes || {};
+        books.forEach(b => { if (sharedVotes[b.title] !== undefined) b.votes = sharedVotes[b.title]; });
+        renderBooks();
+      } catch (e) { console.error('Failed to load votes:', e); renderBooks(); }
+    }
+
+    // Save votes to JSONbin
+    async function saveVotes() {
+      const votes = {}; books.forEach(b => votes[b.title] = b.votes);
+      try {
+        await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Access-Key': JSONBIN_KEY },
+          body: JSON.stringify({ votes })
+        });
+      } catch (e) { console.error('Failed to save votes:', e); }
     }
 
     function renderBooks() {
@@ -430,7 +452,7 @@
 
       list.innerHTML = sorted.map((book, i) => {
         const catClass = { investing: 'cat-investing', history: 'cat-history', psychology: 'cat-psychology', economics: 'cat-economics' }[book.category];
-        const isVoted = votedBooks.has(book.title);
+        const isVoted = userVotedBook === book.title;
         const pct = maxVotes > 0 ? (book.votes / maxVotes) * 100 : 0;
         const safeTitle = book.title.replace(/'/g, "\\'");
 
@@ -459,37 +481,27 @@
       observeReveals();
     }
 
-    function getWeekKey() {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), 0, 1);
-      const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
-      return `${now.getFullYear()}-W${week}`;
-    }
-
-    function toggleVote(title) {
+    async function toggleVote(title) {
       const book = books.find(b => b.title === title);
       if (!book) return;
-      const weekKey = getWeekKey();
-      const votedThisWeek = localStorage.getItem('votedWeek-v2');
 
-      if (votedBooks.has(title)) {
-        // Allow removing your own vote
-        votedBooks.delete(title);
+      if (userVotedBook === title) {
+        // Remove vote
         book.votes = Math.max(0, book.votes - 1);
-        localStorage.removeItem('votedWeek-v2');
+        userVotedBook = null;
+        localStorage.removeItem('userVotedBook-v3');
+      } else if (userVotedBook) {
+        // Already voted for another book
+        alert('You have already voted for "' + userVotedBook + '". You can only vote once.');
+        return;
       } else {
-        // Check if already voted this week
-        if (votedThisWeek === weekKey) {
-          alert('You can only vote for one book per week. Remove your current vote first to vote for a different book.');
-          return;
-        }
-        votedBooks.add(title);
+        // Cast new vote
         book.votes++;
-        localStorage.setItem('votedWeek-v2', weekKey);
+        userVotedBook = title;
+        localStorage.setItem('userVotedBook-v3', title);
       }
-      localStorage.setItem('votedBooks-v2', JSON.stringify([...votedBooks]));
-      saveVotes();
       renderBooks();
+      await saveVotes();
     }
 
     document.getElementById('signup-form').addEventListener('submit', function(e) {
@@ -513,7 +525,7 @@
 
     window.addEventListener('scroll', () => { document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50); });
 
-    renderBooks();
+    loadVotes(); // Fetch shared votes from JSONbin
 
     // ── THREE.JS ──
     (function() {
