@@ -306,6 +306,7 @@
       <li><a href="#books">Vote</a></li>
       <li><a href="#pick">This Week</a></li>
       <li><a href="discussion.html">Discussion</a></li>
+      <li id="nav-auth-container"></li>
     </ul>
   </nav>
 
@@ -397,6 +398,52 @@
   </footer>
 
   <script>
+    // ── Authentication ──
+    const AUTH_TOKEN_KEY = 'pi-reading-club-token';
+    const AUTH_USER_KEY = 'pi-reading-club-user';
+
+    function getCurrentUser() {
+      const userStr = localStorage.getItem(AUTH_USER_KEY);
+      if (!userStr) return null;
+      try { return JSON.parse(userStr); } catch { return null; }
+    }
+
+    function isLoggedIn() {
+      return !!localStorage.getItem(AUTH_TOKEN_KEY) && !!getCurrentUser();
+    }
+
+    function logout() {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      localStorage.removeItem(AUTH_USER_KEY);
+      window.location.reload();
+    }
+
+    function escapeHtmlAuth(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function updateNavAuth() {
+      const navContainer = document.getElementById('nav-auth-container');
+      if (!navContainer) return;
+      const user = getCurrentUser();
+
+      if (user) {
+        navContainer.innerHTML = `
+          <span style="color: var(--gray-600); font-size: 0.9rem;">
+            Hi, <strong style="color: var(--green-700);">${escapeHtmlAuth(user.name)}</strong>
+          </span>
+          <a href="#" onclick="logout(); return false;" style="color: var(--gray-500); font-size: 0.85rem; margin-left: 0.75rem;">Logout</a>
+        `;
+      } else {
+        navContainer.innerHTML = `<a href="login.html" style="color: var(--green-600); font-weight: 600;">Login</a>`;
+      }
+    }
+
+    // Initialize auth on page load
+    document.addEventListener('DOMContentLoaded', updateNavAuth);
+
     // ── Book Data (votes at 0, lesser-known picks, with GoodReads links) ──
     const books = [
       { title: "A Random Walk Down Wall Street", author: "Burton Malkiel", category: "investing", description: "A classic argument for efficient markets and passive investing. Malkiel walks readers through every investment strategy and lets the evidence speak.", votes: 0, goodreads: "https://www.goodreads.com/book/show/40242274-a-random-walk-down-wall-street" },
