@@ -382,8 +382,11 @@
 
   <script>
     // ── Current Book (update this when a book is selected) ──
-    // Set to null when no book is selected, or an object with book details
-    const currentBook = null; // Example: { title: "The Psychology of Money", author: "Morgan Housel", description: "Timeless lessons on wealth, greed, and happiness." }
+    const currentBook = {
+      title: "The Lessons of History",
+      author: "Will & Ariel Durant",
+      description: "Distilled wisdom from the Durants' lifetime study of civilisations. A slim volume packed with insights on power, economics, and human nature."
+    };
 
     function renderCurrentBook() {
       const container = document.getElementById('current-book-card');
@@ -413,11 +416,48 @@
     }
 
     // ── Discussion / Comments ──
-    const defaultComments = [];
-
-    let comments = JSON.parse(localStorage.getItem('discussion-comments-v4') || 'null') || defaultComments;
+    let comments = [];
     const likedComments = new Set(JSON.parse(localStorage.getItem('liked-comments-v4') || '[]'));
     let activeReplyForm = null;
+    let isSavingComments = false;
+
+    // Load comments from server
+    async function loadComments() {
+      try {
+        const res = await fetch('/api/comments');
+        if (res.ok) {
+          const serverComments = await res.json();
+          if (Array.isArray(serverComments)) {
+            comments = serverComments;
+          }
+        }
+      } catch (e) {
+        console.log('Using local comments (server unavailable)');
+        comments = JSON.parse(localStorage.getItem('discussion-comments-v4') || '[]');
+      }
+      renderComments();
+    }
+
+    // Save comments to server
+    async function saveComments() {
+      // Always save to localStorage as backup
+      localStorage.setItem('discussion-comments-v4', JSON.stringify(comments));
+
+      if (isSavingComments) return;
+      isSavingComments = true;
+
+      try {
+        await fetch('/api/comments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comments })
+        });
+      } catch (e) {
+        console.log('Failed to save comments to server');
+      } finally {
+        isSavingComments = false;
+      }
+    }
 
     function renderComments() {
       const container = document.getElementById('comments-list');
@@ -537,8 +577,8 @@
       });
 
       activeReplyForm = null;
-      localStorage.setItem('discussion-comments-v4', JSON.stringify(comments));
       renderComments();
+      saveComments();
     }
 
     function toggleLike(id) {
@@ -547,8 +587,8 @@
       if (likedComments.has(id)) { likedComments.delete(id); comment.likes = Math.max(0, comment.likes - 1); }
       else { likedComments.add(id); comment.likes++; }
       localStorage.setItem('liked-comments-v4', JSON.stringify([...likedComments]));
-      localStorage.setItem('discussion-comments-v4', JSON.stringify(comments));
       renderComments();
+      saveComments();
     }
 
     function toggleLikeReply(replyId, parentId) {
@@ -560,8 +600,8 @@
       if (likedComments.has(replyId)) { likedComments.delete(replyId); reply.likes = Math.max(0, reply.likes - 1); }
       else { likedComments.add(replyId); reply.likes++; }
       localStorage.setItem('liked-comments-v4', JSON.stringify([...likedComments]));
-      localStorage.setItem('discussion-comments-v4', JSON.stringify(comments));
       renderComments();
+      saveComments();
     }
 
     document.getElementById('comment-form').addEventListener('submit', function(e) {
@@ -570,8 +610,8 @@
       const text = document.getElementById('comment-text').value.trim();
       if (!name || !text) return;
       comments.unshift({ name, text, time: 'Just now', likes: 0, id: 'c' + Date.now(), replies: [] });
-      localStorage.setItem('discussion-comments-v4', JSON.stringify(comments));
       renderComments();
+      saveComments();
       this.reset();
     });
 
@@ -587,7 +627,8 @@
     window.addEventListener('scroll', () => { document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50); });
 
     renderCurrentBook();
-    renderComments();
+    renderComments(); // Initial render with empty/local data
+    loadComments();   // Then load from server
     observeReveals(); // Observe all initial reveal elements
 
     // ── THREE.JS Background (simplified) ──
