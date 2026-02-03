@@ -463,6 +463,19 @@
   </footer>
 
   <script>
+    // ── Require Login to Access Discussion Page ──
+    const AUTH_TOKEN_KEY = 'pi-reading-club-token';
+    const AUTH_USER_KEY = 'pi-reading-club-user';
+
+    // Check if user is logged in, redirect to login if not
+    (function checkAuth() {
+      const token = localStorage.getItem(AUTH_TOKEN_KEY);
+      const user = localStorage.getItem(AUTH_USER_KEY);
+      if (!token || !user) {
+        window.location.href = 'login.html?redirect=/discussion.html';
+      }
+    })();
+
     // ── Current Book (update this when a book is selected) ──
     const currentBook = {
       title: "The Lessons of History",
@@ -497,10 +510,7 @@
         </div>`;
     }
 
-    // ── Authentication ──
-    const AUTH_TOKEN_KEY = 'pi-reading-club-token';
-    const AUTH_USER_KEY = 'pi-reading-club-user';
-
+    // ── Authentication Functions ──
     function getCurrentUser() {
       const userStr = localStorage.getItem(AUTH_USER_KEY);
       if (!userStr) return null;
