@@ -204,13 +204,48 @@
     .comment-time { font-size: 0.75rem; color: var(--gray-400); }
     .comment-body { font-size: 0.88rem; color: var(--gray-600); line-height: 1.6; }
     .comment-actions { display: flex; gap: 1rem; margin-top: 0.75rem; }
-    .comment-like-btn, .comment-reply-btn {
+    .comment-like-btn, .comment-reply-btn, .comment-edit-btn, .comment-delete-btn {
       display: inline-flex; align-items: center; gap: 0.3rem;
       font-size: 0.78rem; font-weight: 500; color: var(--gray-400);
       background: none; border: none; cursor: pointer; font-family: inherit; transition: color 0.2s; padding: 0;
     }
-    .comment-like-btn:hover, .comment-reply-btn:hover { color: var(--green-600); }
+    .comment-like-btn:hover, .comment-reply-btn:hover, .comment-edit-btn:hover { color: var(--green-600); }
+    .comment-delete-btn:hover { color: #dc2626; }
     .comment-like-btn.liked { color: var(--green-600); font-weight: 600; }
+
+    /* Edit form */
+    .edit-form-container {
+      margin-top: 0.75rem; padding: 1rem;
+      background: rgba(255, 251, 235, 0.6); border-radius: 12px;
+      border: 1px solid rgba(234, 179, 8, 0.2);
+    }
+    .edit-form { display: flex; flex-direction: column; gap: 0.5rem; }
+    .edit-form textarea {
+      width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px;
+      border: 1.5px solid var(--gray-200); font-size: 0.85rem; font-family: inherit;
+      background: var(--white); outline: none; resize: vertical; min-height: 60px;
+      transition: border-color 0.3s;
+    }
+    .edit-form textarea:focus {
+      border-color: var(--green-400); box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.08);
+    }
+    .edit-form-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+    /* Delete confirmation */
+    .delete-confirm {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: rgba(254, 226, 226, 0.8); padding: 0.4rem 0.75rem;
+      border-radius: 8px; margin-left: 0.5rem;
+    }
+    .delete-confirm span { font-size: 0.75rem; color: #991b1b; }
+    .delete-confirm-btn {
+      font-size: 0.72rem; font-weight: 600; padding: 0.25rem 0.5rem;
+      border-radius: 4px; cursor: pointer; border: none; font-family: inherit;
+    }
+    .delete-yes { background: #dc2626; color: white; }
+    .delete-yes:hover { background: #b91c1c; }
+    .delete-no { background: var(--gray-200); color: var(--gray-700); }
+    .delete-no:hover { background: var(--gray-300); }
 
     /* Replies */
     .replies-list {
@@ -434,6 +469,8 @@
     let comments = [];
     const likedComments = new Set(JSON.parse(localStorage.getItem('liked-comments-v4') || '[]'));
     let activeReplyForm = null;
+    let activeEditForm = null;      // Track which comment is being edited
+    let deleteConfirmId = null;     // Track which comment is pending delete confirmation
     let isSavingComments = false;
 
     // ── Remember Name Functionality ──
@@ -514,6 +551,8 @@
       const isLiked = likedComments.has(c.id);
       const replies = c.replies || [];
       const showReplyForm = activeReplyForm === c.id;
+      const showEditForm = activeEditForm === c.id;
+      const showDeleteConfirm = deleteConfirmId === c.id;
 
       return `
         <div class="comment-card reveal">
@@ -522,9 +561,21 @@
               <div class="comment-avatar">${initials}</div>
               <span class="comment-name">${escapeHtml(c.name)}</span>
             </div>
-            <span class="comment-time">${c.time}</span>
+            <span class="comment-time">${c.time}${c.edited ? ' (edited)' : ''}</span>
           </div>
-          <div class="comment-body">${escapeHtml(c.text)}</div>
+          ${showEditForm ? `
+            <div class="edit-form-container">
+              <form class="edit-form" onsubmit="submitEdit(event, '${c.id}')">
+                <textarea id="edit-text-${c.id}" required>${escapeHtml(c.text)}</textarea>
+                <div class="edit-form-actions">
+                  <button type="button" class="btn-cancel btn-small" onclick="toggleEditForm(null)">Cancel</button>
+                  <button type="submit" class="btn btn-primary btn-small">Save</button>
+                </div>
+              </form>
+            </div>
+          ` : `
+            <div class="comment-body">${escapeHtml(c.text)}</div>
+          `}
           <div class="comment-actions">
             <button class="comment-like-btn ${isLiked ? 'liked' : ''}" onclick="toggleLike('${c.id}')">
               ${isLiked ? '&#9829;' : '&#9825;'} <span>${c.likes}</span>
@@ -533,6 +584,21 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
               Reply
             </button>
+            <button class="comment-edit-btn" onclick="toggleEditForm('${c.id}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit
+            </button>
+            <button class="comment-delete-btn" onclick="toggleDeleteConfirm('${c.id}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Delete
+            </button>
+            ${showDeleteConfirm ? `
+              <div class="delete-confirm">
+                <span>Are you sure?</span>
+                <button class="delete-confirm-btn delete-yes" onclick="confirmDelete('${c.id}')">Yes</button>
+                <button class="delete-confirm-btn delete-no" onclick="toggleDeleteConfirm(null)">No</button>
+              </div>
+            ` : ''}
           </div>
           ${showReplyForm ? `
             <div class="reply-form-container">
@@ -548,15 +614,18 @@
           ` : ''}
           ${replies.length > 0 ? `
             <div class="replies-list">
-              ${replies.map(r => renderReply(r)).join('')}
+              ${replies.map(r => renderReply(r, c.id)).join('')}
             </div>
           ` : ''}
         </div>`;
     }
 
-    function renderReply(r) {
+    function renderReply(r, parentId) {
       const initials = r.name.split(' ').map(w => w[0]).join('').substring(0, 2);
       const isLiked = likedComments.has(r.id);
+      const showEditForm = activeEditForm === r.id;
+      const showDeleteConfirm = deleteConfirmId === r.id;
+
       return `
         <div class="reply-card">
           <div class="comment-header">
@@ -564,13 +633,40 @@
               <div class="comment-avatar">${initials}</div>
               <span class="comment-name">${escapeHtml(r.name)}</span>
             </div>
-            <span class="comment-time">${r.time}</span>
+            <span class="comment-time">${r.time}${r.edited ? ' (edited)' : ''}</span>
           </div>
-          <div class="comment-body">${escapeHtml(r.text)}</div>
+          ${showEditForm ? `
+            <div class="edit-form-container">
+              <form class="edit-form" onsubmit="submitEditReply(event, '${r.id}', '${parentId}')">
+                <textarea id="edit-text-${r.id}" required>${escapeHtml(r.text)}</textarea>
+                <div class="edit-form-actions">
+                  <button type="button" class="btn-cancel btn-small" onclick="toggleEditForm(null)">Cancel</button>
+                  <button type="submit" class="btn btn-primary btn-small">Save</button>
+                </div>
+              </form>
+            </div>
+          ` : `
+            <div class="comment-body">${escapeHtml(r.text)}</div>
+          `}
           <div class="comment-actions">
-            <button class="comment-like-btn ${isLiked ? 'liked' : ''}" onclick="toggleLikeReply('${r.id}', '${r.parentId}')">
+            <button class="comment-like-btn ${isLiked ? 'liked' : ''}" onclick="toggleLikeReply('${r.id}', '${parentId}')">
               ${isLiked ? '&#9829;' : '&#9825;'} <span>${r.likes}</span>
             </button>
+            <button class="comment-edit-btn" onclick="toggleEditForm('${r.id}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit
+            </button>
+            <button class="comment-delete-btn" onclick="toggleDeleteConfirm('${r.id}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Delete
+            </button>
+            ${showDeleteConfirm ? `
+              <div class="delete-confirm">
+                <span>Are you sure?</span>
+                <button class="delete-confirm-btn delete-yes" onclick="confirmDeleteReply('${r.id}', '${parentId}')">Yes</button>
+                <button class="delete-confirm-btn delete-no" onclick="toggleDeleteConfirm(null)">No</button>
+              </div>
+            ` : ''}
           </div>
         </div>`;
     }
@@ -640,6 +736,77 @@
       if (likedComments.has(replyId)) { likedComments.delete(replyId); reply.likes = Math.max(0, reply.likes - 1); }
       else { likedComments.add(replyId); reply.likes++; }
       localStorage.setItem('liked-comments-v4', JSON.stringify([...likedComments]));
+      renderComments();
+      saveComments();
+    }
+
+    // ── Edit Functions ──
+    function toggleEditForm(id) {
+      activeEditForm = activeEditForm === id ? null : id;
+      activeReplyForm = null; // Close reply form when editing
+      deleteConfirmId = null; // Close delete confirm
+      renderComments();
+      if (id) {
+        setTimeout(() => {
+          const textarea = document.getElementById(`edit-text-${id}`);
+          if (textarea) { textarea.focus(); textarea.setSelectionRange(textarea.value.length, textarea.value.length); }
+        }, 50);
+      }
+    }
+
+    function submitEdit(e, commentId) {
+      e.preventDefault();
+      const newText = document.getElementById(`edit-text-${commentId}`).value.trim();
+      if (!newText) return;
+
+      const comment = comments.find(c => c.id === commentId);
+      if (!comment) return;
+
+      comment.text = newText;
+      comment.edited = true;
+      activeEditForm = null;
+      renderComments();
+      saveComments();
+    }
+
+    function submitEditReply(e, replyId, parentId) {
+      e.preventDefault();
+      const newText = document.getElementById(`edit-text-${replyId}`).value.trim();
+      if (!newText) return;
+
+      const comment = comments.find(c => c.id === parentId);
+      if (!comment || !comment.replies) return;
+
+      const reply = comment.replies.find(r => r.id === replyId);
+      if (!reply) return;
+
+      reply.text = newText;
+      reply.edited = true;
+      activeEditForm = null;
+      renderComments();
+      saveComments();
+    }
+
+    // ── Delete Functions ──
+    function toggleDeleteConfirm(id) {
+      deleteConfirmId = deleteConfirmId === id ? null : id;
+      activeEditForm = null; // Close edit form
+      renderComments();
+    }
+
+    function confirmDelete(commentId) {
+      comments = comments.filter(c => c.id !== commentId);
+      deleteConfirmId = null;
+      renderComments();
+      saveComments();
+    }
+
+    function confirmDeleteReply(replyId, parentId) {
+      const comment = comments.find(c => c.id === parentId);
+      if (!comment || !comment.replies) return;
+
+      comment.replies = comment.replies.filter(r => r.id !== replyId);
+      deleteConfirmId = null;
       renderComments();
       saveComments();
     }
