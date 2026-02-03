@@ -172,6 +172,17 @@
     }
     .comment-form button { flex-shrink: 0; align-self: flex-end; }
 
+    .remember-me {
+      display: flex; align-items: center; gap: 0.5rem;
+      flex-basis: 100%; margin-top: 0.5rem;
+    }
+    .remember-me input[type="checkbox"] {
+      width: 16px; height: 16px; accent-color: var(--green-500); cursor: pointer;
+    }
+    .remember-me label {
+      font-size: 0.82rem; color: var(--gray-500); cursor: pointer; user-select: none;
+    }
+
     .comments-list { display: flex; flex-direction: column; gap: 0.75rem; }
 
     .comment-card {
@@ -358,6 +369,10 @@
           <input type="text" placeholder="Your name" id="comment-name" required aria-label="Your name">
           <textarea placeholder="What did you think of this chapter? Any key takeaways or questions?" id="comment-text" required aria-label="Your comment" style="min-height: 80px;"></textarea>
           <button type="submit" class="btn btn-primary">Post</button>
+          <div class="remember-me">
+            <input type="checkbox" id="remember-name" checked>
+            <label for="remember-name">Remember my name</label>
+          </div>
         </form>
       </div>
 
@@ -420,6 +435,26 @@
     const likedComments = new Set(JSON.parse(localStorage.getItem('liked-comments-v4') || '[]'));
     let activeReplyForm = null;
     let isSavingComments = false;
+
+    // ── Remember Name Functionality ──
+    const SAVED_NAME_KEY = 'pi-reading-club-name';
+
+    function getSavedName() {
+      return localStorage.getItem(SAVED_NAME_KEY) || '';
+    }
+
+    function saveName(name) {
+      if (document.getElementById('remember-name').checked && name.trim()) {
+        localStorage.setItem(SAVED_NAME_KEY, name.trim());
+      }
+    }
+
+    function loadSavedName() {
+      const savedName = getSavedName();
+      if (savedName) {
+        document.getElementById('comment-name').value = savedName;
+      }
+    }
 
     // Load comments from server
     async function loadComments() {
@@ -502,7 +537,7 @@
           ${showReplyForm ? `
             <div class="reply-form-container">
               <form class="reply-form" onsubmit="submitReply(event, '${c.id}')">
-                <input type="text" placeholder="Your name" id="reply-name-${c.id}" required>
+                <input type="text" placeholder="Your name" id="reply-name-${c.id}" value="${escapeHtml(getSavedName())}" required>
                 <textarea placeholder="Write a reply..." id="reply-text-${c.id}" required></textarea>
                 <div class="reply-form-actions">
                   <button type="submit" class="btn btn-primary btn-small">Reply</button>
@@ -563,6 +598,11 @@
       const text = document.getElementById(`reply-text-${parentId}`).value.trim();
       if (!name || !text) return;
 
+      // Save name to localStorage (reuse main form's remember preference)
+      if (document.getElementById('remember-name').checked && name) {
+        localStorage.setItem(SAVED_NAME_KEY, name);
+      }
+
       const comment = comments.find(c => c.id === parentId);
       if (!comment) return;
 
@@ -609,10 +649,16 @@
       const name = document.getElementById('comment-name').value.trim();
       const text = document.getElementById('comment-text').value.trim();
       if (!name || !text) return;
+
+      // Save name if "Remember me" is checked
+      saveName(name);
+
       comments.unshift({ name, text, time: 'Just now', likes: 0, id: 'c' + Date.now(), replies: [] });
       renderComments();
       saveComments();
-      this.reset();
+
+      // Only reset the text, keep the name
+      document.getElementById('comment-text').value = '';
     });
 
     function observeReveals() {
@@ -627,6 +673,7 @@
     window.addEventListener('scroll', () => { document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50); });
 
     renderCurrentBook();
+    loadSavedName();  // Pre-fill name from localStorage
     renderComments(); // Initial render with empty/local data
     loadComments();   // Then load from server
     observeReveals(); // Observe all initial reveal elements
